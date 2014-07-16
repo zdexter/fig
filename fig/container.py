@@ -37,7 +37,8 @@ class Container(object):
 
     @property
     def id(self):
-        return self.dictionary['Id']
+        # Docker < v1.0 older uses Id sometimes
+        return self.dictionary.get('ID', self.dictionary.get('Id'))
 
     @property
     def image(self):
