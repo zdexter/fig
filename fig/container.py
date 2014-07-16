@@ -36,7 +36,8 @@ class Container(object):
 
     @property
     def id(self):
-        return self.dictionary['Id']
+        # TODO: older versions use Id?
+        return self.dictionary.get('ID', self.dictionary.get('Id'))
 
     @property
     def image(self):
