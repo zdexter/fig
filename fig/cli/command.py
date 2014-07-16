@@ -14,10 +14,13 @@ from ..project import Project
 from ..service import ConfigError
 from .docopt_command import DocoptCommand
 from .formatter import Formatter
-from .utils import cached_property, docker_url, call_silently, is_mac, is_ubuntu
+from . import utils
+from .utils import cached_property, call_silently, is_mac, is_ubuntu
 from . import errors
 
+
 log = logging.getLogger(__name__)
+
 
 class Command(DocoptCommand):
     base_dir = '.'
@@ -51,7 +54,7 @@ class Command(DocoptCommand):
 
     @cached_property
     def client(self):
-        return Client(docker_url())
+        return Client(utils.docker_url(), version=utils.docker_api_version())
 
     @cached_property
     def project(self):

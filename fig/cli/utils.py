@@ -6,6 +6,8 @@ import os
 import subprocess
 import platform
 
+from fig.packages.docker import client
+
 
 def cached_property(f):
     """
@@ -83,6 +85,10 @@ def mkdir(path, permissions=0o700):
 
 def docker_url():
     return os.environ.get('DOCKER_HOST')
+
+
+def docker_api_version():
+    return os.environ.get('DOCKER_API_VERSION', client.DEFAULT_DOCKER_API_VERSION)
 
 
 def split_buffer(reader, separator):
