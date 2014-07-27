@@ -76,6 +76,8 @@ expose:
 
 Mount paths as volumes, optionally specifying a path on the host machine (`HOST:CONTAINER`).
 
+Note: Mapping local volumes is currently unsupported on boot2docker. We recommend you use [docker-osx](https://github.com/noplay/docker-osx) if want to map local volumes.
+
 ```
 volumes:
  - /var/lib/mysql
@@ -117,4 +119,31 @@ net: "bridge"
 net: "none"
 net: "container:[name or id]"
 net: "host"
+```
+
+### dns
+
+Custom DNS servers. Can be a single value or a list.
+
+```
+dns: 8.8.8.8
+dns:
+  - 8.8.8.8
+  - 9.9.9.9
+```
+
+### working\_dir, entrypoint, user, hostname, domainname, mem\_limit, privileged
+
+Each of these is a single value, analogous to its [docker run](https://docs.docker.com/reference/run/) counterpart.
+
+```
+working_dir: /code
+entrypoint: /code/entrypoint.sh
+user: postgresql
+
+hostname: foo
+domainname: foo.com
+
+mem_limit: 1000000000
+privileged: true
 ```

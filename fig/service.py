@@ -238,6 +238,7 @@ class Service(object):
 
         privileged = options.get('privileged', False)
         net = options.get('net', 'bridge')
+        dns = options.get('dns', None)
 
         container.start(
             links=self._get_links(link_to_self=override_options.get('one_off', False)),
@@ -246,6 +247,7 @@ class Service(object):
             volumes_from=self._get_volumes_from(intermediate_container),
             privileged=privileged,
             network_mode=net,
+            dns=dns,
         )
         return container
 
@@ -346,24 +348,22 @@ class Service(object):
                 self.build()
             container_options['image'] = self._build_tag_name()
 
-        # Priviliged is only required for starting containers, not for creating them
-        if 'privileged' in container_options:
-            del container_options['privileged']
-
-        # net is only required for starting containers, not for creating them
-        if 'net' in container_options:
-            del container_options['net']
+        # Delete options which are only used when starting
+        for key in ['privileged', 'net', 'dns']:
+            if key in container_options:
+                del container_options[key]
 
         return container_options
 
-    def build(self):
+    def build(self, no_cache=False):
         log.info('Building %s...' % self.name)
 
         build_output = self.client.build(
             self.options['build'],
             tag=self._build_tag_name(),
             stream=True,
-            rm=True
+            rm=True,
+            nocache=no_cache,
         )
 
         try:
