@@ -1,15 +1,16 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
+
 from fig.packages.docker import Client
 from fig.service import Service
-from fig.cli.utils import docker_url
+from fig.cli import utils
 from .. import unittest
 
 
 class DockerClientTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = Client(docker_url())
+        cls.client = Client(utils.docker_url(), version=utils.docker_api_version())
         cls.client.pull('busybox', tag='latest')
 
     def setUp(self):

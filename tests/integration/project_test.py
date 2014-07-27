@@ -109,6 +109,7 @@ class ProjectTest(DockerClientTestCase):
 
         db_container = [c for c in project.containers() if 'db' in c.name][0]
         self.assertNotEqual(c.id, old_db_id)
+        # TODO: also fails on docker 0.9
         self.assertEqual(c.inspect()['Volumes']['/var/db'], db_volume_path)
 
         project.kill()

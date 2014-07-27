@@ -1,11 +1,20 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
+from .. import unittest
+import os
+
 from fig import Service
 from fig.service import CannotBeScaledError
 from fig.container import Container
 from fig.packages.docker.errors import APIError
+from fig.packages.docker.utils import utils
 from .testcases import DockerClientTestCase
-import os
+
+
+def docker_version_less_than(required_version):
+    version = os.environ.get('DOCKER_VERSION', '1.0')
+    return utils.compare_version(version, required_version) > 0
+
 
 class ServiceTest(DockerClientTestCase):
     def test_containers(self):
@@ -98,15 +107,24 @@ class ServiceTest(DockerClientTestCase):
         service.start_container(container)
         self.assertIn('/host-tmp', container.inspect()['Volumes'])
 
+    @unittest.skipIf(docker_version_less_than('1.0'), "Requires docker >= v1.0")
     def test_create_container_with_volumes_from(self):
         volume_service = self.create_service('data')
         volume_container_1 = volume_service.create_container()
-        volume_container_2 = Container.create(self.client, image='busybox:latest', command=["/bin/sleep", "300"])
-        host_service = self.create_service('host', volumes_from=[volume_service, volume_container_2])
+        volume_container_2 = Container.create(
+                self.client,
+                image='busybox:latest',
+                command=["/bin/sleep", "300"])
+        host_service = self.create_service(
+                'host',
+                volumes_from=[volume_service,
+                volume_container_2])
         host_container = host_service.create_container()
         host_service.start_container(host_container)
-        self.assertIn(volume_container_1.id, host_container.inspect()['HostConfig']['VolumesFrom'])
-        self.assertIn(volume_container_2.id, host_container.inspect()['HostConfig']['VolumesFrom'])
+        self.assertIn(volume_container_1.id,
+                      host_container.inspect()['HostConfig']['VolumesFrom'])
+        self.assertIn(volume_container_2.id,
+                      host_container.inspect()['HostConfig']['VolumesFrom'])
 
     def test_recreate_containers(self):
         service = self.create_service(
@@ -132,14 +150,18 @@ class ServiceTest(DockerClientTestCase):
 
         intermediate_container = tuples[0][0]
         new_container = tuples[0][1]
-        self.assertEqual(intermediate_container.dictionary['Config']['Entrypoint'], ['echo'])
+        self.assertEqual(intermediate_container.dictionary['Config']['Entrypoint'],
+                         ['echo'])
 
         self.assertEqual(new_container.dictionary['Config']['Entrypoint'], ['sleep'])
         self.assertEqual(new_container.dictionary['Config']['Cmd'], ['300'])
         self.assertIn('FOO=2', new_container.dictionary['Config']['Env'])
         self.assertEqual(new_container.name, 'figtest_db_1')
+
+        # TODO: what does this test, and why does it fail on 0.9
         self.assertEqual(new_container.inspect()['Volumes']['/var/db'], volume_path)
-        self.assertIn(intermediate_container.id, new_container.dictionary['HostConfig']['VolumesFrom'])
+        self.assertIn(intermediate_container.id,
+                      new_container.dictionary['HostConfig']['VolumesFrom'])
 
         self.assertEqual(len(self.client.containers(all=True)), num_containers_before)
         self.assertNotEqual(old_container.id, new_container.id)
@@ -301,16 +323,19 @@ class ServiceTest(DockerClientTestCase):
         for container in containers:
             self.assertEqual(list(container.inspect()['HostConfig']['PortBindings'].keys()), ['8000/tcp'])
 
+    @unittest.skipIf(docker_version_less_than('1.0'), "Requires docker >= v1.0")
     def test_network_mode_none(self):
         service = self.create_service('web', net='none')
         container = service.start_container().inspect()
         self.assertEqual(container['HostConfig']['NetworkMode'], 'none')
 
+    @unittest.skipIf(docker_version_less_than('1.0'), "Requires docker >= v1.0")
     def test_network_mode_bridged(self):
         service = self.create_service('web', net='bridge')
         container = service.start_container().inspect()
         self.assertEqual(container['HostConfig']['NetworkMode'], 'bridge')
 
+    @unittest.skipIf(docker_version_less_than('1.0'), "Requires docker >= v1.0")
     def test_network_mode_host(self):
         service = self.create_service('web', net='host')
         container = service.start_container().inspect()
