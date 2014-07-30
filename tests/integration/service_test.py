@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from fig import Service
 from fig.service import CannotBeScaledError
 from fig.container import Container
-from fig.packages.docker.errors import APIError
+from docker.errors import APIError
 from .testcases import DockerClientTestCase
 import os
 
