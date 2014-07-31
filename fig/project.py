@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import logging
 from .service import Service
 from .container import Container
-from .packages.docker.errors import APIError
+from docker.errors import APIError
 
 log = logging.getLogger(__name__)
 
