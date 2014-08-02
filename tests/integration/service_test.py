@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
+import os
+
 from fig import Service
 from fig.service import CannotBeScaledError
 from fig.container import Container
 from fig.packages.docker.errors import APIError
 from .testcases import DockerClientTestCase
-import os
+
 
 class ServiceTest(DockerClientTestCase):
     def test_containers(self):
