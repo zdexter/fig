@@ -77,6 +77,19 @@ class Service(object):
         project, name, number = parse_name(name)
         return project == self.project and name == self.name
 
+    def get_container(self, number=0):
+        """Return a :class:`fig.container.Container` for this service. The
+        container must be active, and match `number`.
+        """
+        for container in self.client.containers():
+            if not self.has_container(container):
+                continue
+            _, _, container_number = parse_name(get_container_name(container))
+            if container_number == number:
+                return Container.from_ps(self.client, container)
+
+        raise ValueError("No container found for %s_%s", self.name, number)
+
     def start(self, **options):
         for c in self.containers(stopped=True):
             self.start_container_if_stopped(c, **options)
