@@ -88,7 +88,7 @@ class Service(object):
             if container_number == number:
                 return Container.from_ps(self.client, container)
 
-        raise ValueError("No container found for %s_%s", self.name, number)
+        raise ValueError("No container found for %s_%s" % (self.name, number))
 
     def start(self, **options):
         for c in self.containers(stopped=True):

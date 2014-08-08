@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
 
+from fig.packages import six
+
 
 class Container(object):
     """
@@ -63,17 +65,19 @@ class Container(object):
             return None
 
     @property
-    def human_readable_ports(self):
+    def ports(self):
         self.inspect_if_not_inspected()
-        if not self.dictionary['NetworkSettings']['Ports']:
-            return ''
-        ports = []
-        for private, public in list(self.dictionary['NetworkSettings']['Ports'].items()):
-            if public:
-                ports.append('%s->%s' % (public[0]['HostPort'], private))
-            else:
-                ports.append(private)
-        return ', '.join(ports)
+        return self.dictionary['NetworkSettings']['Ports'] or {}
+
+    @property
+    def human_readable_ports(self):
+        def format_port(private, public):
+            if not public:
+                return private
+            return '%s->%s' % (public[0]['HostPort'], private)
+
+        return ', '.join(format_port(*item)
+                         for item in sorted(six.iteritems(self.ports)))
 
     @property
     def human_readable_state(self):
@@ -104,6 +108,13 @@ class Container(object):
     def is_running(self):
         self.inspect_if_not_inspected()
         return self.dictionary['State']['Running']
+
+    def get_local_port(self, port, protocol='tcp'):
+        self.inspect_if_not_inspected()
+        port = self.ports.get("%s/%s" % (port, protocol))
+        if not port:
+            return None
+        return int(port[0]['HostPort'])
 
     def start(self, **options):
         return self.client.start(self.id, **options)
