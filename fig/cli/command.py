@@ -6,7 +6,6 @@ import errno
 import logging
 import os
 import re
-import yaml
 from ..packages import six
 
 from ..project import Project
@@ -15,6 +14,7 @@ from .docopt_command import DocoptCommand
 from .utils import docker_url, call_silently, is_mac, is_ubuntu
 from . import verbose_proxy
 from . import errors
+from .. import config
 from .. import __version__
 
 log = logging.getLogger(__name__)
@@ -59,20 +59,11 @@ class Command(DocoptCommand):
             return verbose_proxy.VerboseProxy('docker', client)
         return client
 
-    def get_config(self, config_path):
-        try:
-            with open(config_path, 'r') as fh:
-                return yaml.safe_load(fh)
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                raise errors.FigFileNotFound(os.path.basename(e.filename))
-            raise errors.UserError(six.text_type(e))
-
     def get_project(self, config_path, project_name=None, verbose=False):
         try:
             return Project.from_config(
                 self.get_project_name(config_path, project_name),
-                self.get_config(config_path),
+                config.get_config(config_path),
                 self.get_client(verbose=verbose))
         except ConfigError as e:
             raise errors.UserError(six.text_type(e))
