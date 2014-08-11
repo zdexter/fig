@@ -74,7 +74,7 @@ class Service(object):
         name = get_container_name(container)
         if not name or not is_valid_name(name, one_off):
             return False
-        project, name, number = parse_name(name)
+        project, name, _number = parse_name(name)
         return project == self.project and name == self.name
 
     def get_container(self, number=1):
