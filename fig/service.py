@@ -77,7 +77,7 @@ class Service(object):
         project, name, number = parse_name(name)
         return project == self.project and name == self.name
 
-    def get_container(self, number=0):
+    def get_container(self, number=1):
         """Return a :class:`fig.container.Container` for this service. The
         container must be active, and match `number`.
         """
