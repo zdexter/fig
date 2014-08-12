@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from .. import unittest
 
 import mock
-from fig.packages import docker
+import docker
 
 from fig import Service
 from fig.service import ConfigError, split_port
