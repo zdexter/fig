@@ -148,6 +148,26 @@ class TopLevelCommand(Command):
         print("Attaching to", list_containers(containers))
         LogPrinter(containers, attach_params={'logs': True}, monochrome=monochrome).run()
 
+    def local_port(self, project, options):
+        """
+        Print the local port for a port binding.
+
+        Usage: local_port [options] SERVICE PORT
+
+        Options:
+            --protocol=proto  tcp or udp (defaults to tcp)
+            --index=index     index of the container if there are multiple
+                              instances of a service (defaults to 1)
+        """
+        service = project.get_service(options['SERVICE'])
+        try:
+            container = service.get_container(number=options.get('--index') or 1)
+        except ValueError as e:
+            raise UserError(str(e))
+        print(container.get_local_port(
+            options['PORT'],
+            protocol=options.get('--protocol') or 'tcp') or '')
+
     def ps(self, project, options):
         """
         List containers.
