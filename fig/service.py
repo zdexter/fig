@@ -11,20 +11,6 @@ from .progress_stream import stream_output, StreamOutputError
 log = logging.getLogger(__name__)
 
 
-DOCKER_CONFIG_KEYS = ['image', 'command', 'hostname', 'domainname', 'user', 'detach', 'stdin_open', 'tty', 'mem_limit', 'ports', 'environment', 'dns', 'volumes', 'entrypoint', 'privileged', 'volumes_from', 'net', 'working_dir']
-DOCKER_CONFIG_HINTS = {
-    'link'      : 'links',
-    'port'      : 'ports',
-    'privilege' : 'privileged',
-    'priviliged': 'privileged',
-    'privilige' : 'privileged',
-    'volume'    : 'volumes',
-    'workdir'   : 'working_dir',
-}
-
-VALID_NAME_CHARS = '[a-zA-Z0-9]'
-
-
 class BuildError(Exception):
     def __init__(self, service, reason):
         self.service = service
@@ -35,28 +21,15 @@ class CannotBeScaledError(Exception):
     pass
 
 
-class ConfigError(ValueError):
-    pass
-
-
+# TODO: replace with schema validation
 class Service(object):
-    def __init__(self, name, client=None, project='default', links=None, volumes_from=None, **options):
-        if not re.match('^%s+$' % VALID_NAME_CHARS, name):
-            raise ConfigError('Invalid service name "%s" - only %s are allowed' % (name, VALID_NAME_CHARS))
-        if not re.match('^%s+$' % VALID_NAME_CHARS, project):
-            raise ConfigError('Invalid project name "%s" - only %s are allowed' % (project, VALID_NAME_CHARS))
-        if 'image' in options and 'build' in options:
-            raise ConfigError('Service %s has both an image and build path specified. A service can either be built to image or use an existing image, not both.' % name)
-
-        supported_options = DOCKER_CONFIG_KEYS + ['build', 'expose']
-
-        for k in options:
-            if k not in supported_options:
-                msg = "Unsupported config option for %s service: '%s'" % (name, k)
-                if k in DOCKER_CONFIG_HINTS:
-                    msg += " (did you mean '%s'?)" % DOCKER_CONFIG_HINTS[k]
-                raise ConfigError(msg)
-
+    def __init__(self,
+                 name,
+                 client=None,
+                 project='default',
+                 links=None,
+                 volumes_from=None,
+                 **options):
         self.name = name
         self.client = client
         self.project = project

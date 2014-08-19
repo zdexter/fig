@@ -2,14 +2,13 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from ..packages.docker import Client
 from requests.exceptions import ConnectionError
-import errno
 import logging
 import os
 import re
 from ..packages import six
 
 from ..project import Project
-from ..service import ConfigError
+from fig.config import ConfigError
 from .docopt_command import DocoptCommand
 from .utils import docker_url, call_silently, is_mac, is_ubuntu
 from . import verbose_proxy
@@ -68,6 +67,7 @@ class Command(DocoptCommand):
         except ConfigError as e:
             raise errors.UserError(six.text_type(e))
 
+    # TODO: validate project name, move to config
     def get_project_name(self, config_path, project_name=None):
         def normalize_name(name):
             return re.sub(r'[^a-zA-Z0-9]', '', name)

@@ -64,12 +64,7 @@ class Project(object):
 
     @classmethod
     def from_config(cls, name, config, client):
-        dicts = []
-        for service_name, service in list(config.items()):
-            if not isinstance(service, dict):
-                raise ConfigurationError('Service "%s" doesn\'t have any configuration options. All top level keys in your fig.yml must map to a dictionary of configuration options.')
-            service['name'] = service_name
-            dicts.append(service)
+        # TODO:
         return cls.from_dicts(name, dicts, client)
 
     def get_service(self, name):

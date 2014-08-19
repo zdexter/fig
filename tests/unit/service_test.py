@@ -1,8 +1,11 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
 from .. import unittest
+
 from fig import Service
-from fig.service import ConfigError, split_port
+from fig.config import ConfigError
+from fig.service import split_port
+
 
 class ServiceTest(unittest.TestCase):
     def test_name_validations(self):

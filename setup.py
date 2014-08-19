@@ -30,6 +30,7 @@ install_requires = [
     'texttable >= 0.8.1, < 0.9',
     'websocket-client >= 0.11.0, < 0.12',
     'dockerpty >= 0.2.3, < 0.3',
+    'colander >= 1.0b1, < 2',
 ]
 
 
