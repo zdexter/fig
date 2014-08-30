@@ -1,10 +1,7 @@
 from __future__ import absolute_import
 from threading import Thread
 
-try:
-    from Queue import Queue, Empty
-except ImportError:
-    from queue import Queue, Empty  # Python 3.x
+from fig.packages.six.moves import queue
 
 
 # Yield STOP from an input generator to stop the
@@ -13,22 +10,25 @@ STOP = object()
 
 
 class Multiplexer(object):
+
     def __init__(self, generators):
         self.generators = generators
-        self.queue = Queue()
+        self.queue = queue.Queue()
 
     def loop(self):
         self._init_readers()
+        finished = 0
 
-        while True:
+        while finished < len(self.generators):
             try:
                 item = self.queue.get(timeout=0.1)
-                if item is STOP:
-                    break
-                else:
-                    yield item
-            except Empty:
-                pass
+            except queue.Empty:
+                continue
+
+            if item is STOP:
+                finished += 1
+            else:
+                yield item
 
     def _init_readers(self):
         for generator in self.generators:

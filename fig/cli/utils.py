@@ -66,7 +66,7 @@ def docker_url():
     return os.environ.get('DOCKER_HOST')
 
 
-def split_buffer(reader, separator):
+def split_buffer(reader, separator='\n'):
     """
     Given a generator which yields strings and a separator string,
     joins all input, splits on the separator and yields each chunk.

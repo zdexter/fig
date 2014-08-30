@@ -2,11 +2,15 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 import os
 
-from fig.cli.log_printer import LogPrinter
+from fig.cli.log_printer import (
+    build_log_generators,
+    run_printer,
+)
 from .. import unittest
 
 
-class LogPrinterTest(unittest.TestCase):
+class LogGeneratorTest(unittest.TestCase):
+
     def get_default_output(self, monochrome=False):
         def reader(*args, **kwargs):
             yield "hello\nworld"
@@ -44,8 +48,8 @@ class LogPrinterTest(unittest.TestCase):
 def run_log_printer(containers, monochrome=False):
     r, w = os.pipe()
     reader, writer = os.fdopen(r, 'r'), os.fdopen(w, 'w')
-    printer = LogPrinter(containers, output=writer, monochrome=monochrome)
-    printer.run()
+    generators = build_log_generators(containers, monochrome=monochrome)
+    run_printer(generators, output=writer)
     writer.close()
     return reader.read()
 

@@ -13,7 +13,7 @@ from ..project import NoSuchService, ConfigurationError
 from ..service import BuildError, CannotBeScaledError
 from .command import Command
 from .formatter import Formatter
-from .log_printer import LogPrinter
+from .log_printer import build_log_generators, run_printer
 from .utils import yesno
 
 from ..packages.docker.errors import APIError
@@ -146,7 +146,7 @@ class TopLevelCommand(Command):
 
         monochrome = options['--no-color']
         print("Attaching to", list_containers(containers))
-        LogPrinter(containers, attach_params={'logs': True}, monochrome=monochrome).run()
+        run_printer(build_log_generators(containers, monochrome=monochrome))
 
     def ps(self, project, options):
         """
@@ -356,10 +356,10 @@ class TopLevelCommand(Command):
 
         if not detached:
             print("Attaching to", list_containers(to_attach))
-            log_printer = LogPrinter(to_attach, attach_params={"logs": True}, monochrome=monochrome)
+            log_generators = build_log_generators(to_attach, monochrome=monochrome)
 
             try:
-                log_printer.run()
+                run_printer(log_generators)
             finally:
                 def handler(signal, frame):
                     project.kill(service_names=service_names)
