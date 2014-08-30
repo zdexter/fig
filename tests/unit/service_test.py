@@ -3,10 +3,12 @@ from __future__ import absolute_import
 import os
 
 from .. import unittest
+from fig.packages import docker
 import mock
 
 from fig import Service
 from fig.service import (
+    BuildError,
     ConfigError,
     split_port,
     parse_volume_spec,
@@ -15,6 +17,46 @@ from fig.service import (
 
 
 class ServiceTest(unittest.TestCase):
+
+    def test_build_with_build_Error(self):
+        mock_client = mock.create_autospec(docker.Client)
+        service = Service('buildtest', client=mock_client, build='/path')
+        with self.assertRaises(BuildError):
+            service.build()
+
+    def test_build_with_cache(self):
+        mock_client = mock.create_autospec(docker.Client)
+        service = Service(
+            'buildtest',
+            client=mock_client,
+            build='/path',
+            tags=['foo', 'foo:v2'])
+        expected = 'abababab'
+
+        with mock.patch('fig.service.stream_output') as mock_stream_output:
+            mock_stream_output.return_value = [
+                dict(stream='Successfully built %s' % expected)
+            ]
+            image_id = service.build()
+        self.assertEqual(image_id, expected)
+        mock_client.build.assert_called_once_with(
+            '/path',
+            tag=service.full_name,
+            stream=True,
+            rm=True,
+            nocache=False)
+
+        self.assertEqual(mock_client.tag.mock_calls, [
+            mock.call(image_id, 'foo', tag=None),
+            mock.call(image_id, 'foo', tag='v2'),
+        ])
+
+    def test_bad_tags_from_config(self):
+        with self.assertRaises(ConfigError) as exc_context:
+            Service('something', tags='my_tag_is_a_string')
+        self.assertEqual(str(exc_context.exception),
+                         'Service something tags must be a list.')
+
     def test_name_validations(self):
         self.assertRaises(ConfigError, lambda: Service(name=''))
 
