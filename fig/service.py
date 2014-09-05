@@ -15,7 +15,26 @@ from .progress_stream import stream_output, StreamOutputError
 log = logging.getLogger(__name__)
 
 
-DOCKER_CONFIG_KEYS = ['image', 'command', 'hostname', 'domainname', 'user', 'detach', 'stdin_open', 'tty', 'mem_limit', 'ports', 'environment', 'dns', 'volumes', 'entrypoint', 'privileged', 'volumes_from', 'net', 'working_dir']
+DOCKER_CONFIG_KEYS = [
+    'command',
+    'detach',
+    'dns',
+    'domainname',
+    'entrypoint',
+    'environment',
+    'hostname',
+    'image',
+    'mem_limit',
+    'net',
+    'ports',
+    'privileged',
+    'stdin_open',
+    'tty',
+    'user',
+    'volumes',
+    'volumes_from',
+    'working_dir',
+]
 DOCKER_CONFIG_HINTS = {
     'link'      : 'links',
     'port'      : 'ports',
@@ -58,7 +77,10 @@ class Service(object):
         if 'image' in options and 'build' in options:
             raise ConfigError('Service %s has both an image and build path specified. A service can either be built to image or use an existing image, not both.' % name)
 
-        supported_options = DOCKER_CONFIG_KEYS + ['build', 'expose']
+        if 'tags' in options and not isinstance(options['tags'], list):
+            raise ConfigError("Service %s tags must be a list." % name)
+
+        supported_options = DOCKER_CONFIG_KEYS + ['build', 'expose', 'tags']
 
         for k in options:
             if k not in supported_options:
@@ -73,6 +95,13 @@ class Service(object):
         self.links = links or []
         self.volumes_from = volumes_from or []
         self.options = options
+
+    @property
+    def full_name(self):
+        """The full name of this service includes the project name, and is also
+        the name of the docker image which fulfills this service.
+        """
+        return '%s_%s' % (self.project, self.name)
 
     def containers(self, stopped=False, one_off=False):
         return [Container.from_ps(self.client, container)
@@ -318,7 +347,9 @@ class Service(object):
         return volumes_from
 
     def _get_container_create_options(self, override_options, one_off=False):
-        container_options = dict((k, self.options[k]) for k in DOCKER_CONFIG_KEYS if k in self.options)
+        container_options = dict(
+            (k, self.options[k])
+            for k in DOCKER_CONFIG_KEYS if k in self.options)
         container_options.update(override_options)
 
         container_options['name'] = self._next_container_name(
@@ -359,9 +390,9 @@ class Service(object):
             container_options['environment'] = dict(resolve_env(k, v) for k, v in container_options['environment'].iteritems())
 
         if self.can_be_built():
-            if len(self.client.images(name=self._build_tag_name())) == 0:
+            if not self.client.images(name=self.full_name):
                 self.build()
-            container_options['image'] = self._build_tag_name()
+            container_options['image'] = self.full_name
 
         # Delete options which are only used when starting
         for key in ['privileged', 'net', 'dns']:
@@ -375,7 +406,7 @@ class Service(object):
 
         build_output = self.client.build(
             self.options['build'],
-            tag=self._build_tag_name(),
+            tag=self.full_name,
             stream=True,
             rm=True,
             nocache=no_cache,
@@ -395,24 +426,31 @@ class Service(object):
                     image_id = match.group(1)
 
         if image_id is None:
-            raise BuildError(self)
+            raise BuildError(self, event if all_events else 'Unknown')
 
+        self.tag_image(image_id)
         return image_id
+
+    def tag_image(self, image_id):
+        for tag in self.options.get('tags', []):
+            image_name, image_tag = split_tag(tag)
+            self.client.tag(image_id, image_name, tag=image_tag)
 
     def can_be_built(self):
         return 'build' in self.options
-
-    def _build_tag_name(self):
-        """
-        The tag to give to images built for this service.
-        """
-        return '%s_%s' % (self.project, self.name)
 
     def can_be_scaled(self):
         for port in self.options.get('ports', []):
             if ':' in str(port):
                 return False
         return True
+
+
+def split_tag(tag):
+    if ':' in tag:
+        return tag.rsplit(':', 1)
+    else:
+        return tag, None
 
 
 NAME_RE = re.compile(r'^([^_]+)_([^_]+)_(run_)?(\d+)$')
