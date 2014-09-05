@@ -84,6 +84,7 @@ class TopLevelCommand(Command):
       help      Get help on a command
       kill      Kill containers
       logs      View output from containers
+      port      Print the public port for a port binding
       ps        List containers
       rm        Remove stopped containers
       run       Run a one-off command
@@ -148,11 +149,11 @@ class TopLevelCommand(Command):
         print("Attaching to", list_containers(containers))
         LogPrinter(containers, attach_params={'logs': True}, monochrome=monochrome).run()
 
-    def local_port(self, project, options):
+    def port(self, project, options):
         """
-        Print the local port for a port binding.
+        Print the public port for a port binding.
 
-        Usage: local_port [options] SERVICE PORT
+        Usage: port [options] SERVICE PRIVATE_PORT
 
         Options:
             --protocol=proto  tcp or udp (defaults to tcp)
@@ -165,7 +166,7 @@ class TopLevelCommand(Command):
         except ValueError as e:
             raise UserError(str(e))
         print(container.get_local_port(
-            options['PORT'],
+            options['PRIVATE_PORT'],
             protocol=options.get('--protocol') or 'tcp') or '')
 
     def ps(self, project, options):

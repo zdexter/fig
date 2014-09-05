@@ -74,7 +74,8 @@ class Container(object):
         def format_port(private, public):
             if not public:
                 return private
-            return '%s->%s' % (public[0]['HostPort'], private)
+            return '{HostIp}:{HostPort}->{private}'.format(
+                private=private, **public[0])
 
         return ', '.join(format_port(*item)
                          for item in sorted(six.iteritems(self.ports)))
@@ -110,11 +111,8 @@ class Container(object):
         return self.dictionary['State']['Running']
 
     def get_local_port(self, port, protocol='tcp'):
-        self.inspect_if_not_inspected()
         port = self.ports.get("%s/%s" % (port, protocol))
-        if not port:
-            return None
-        return int(port[0]['HostPort'])
+        return "{HostIp}:{HostPort}".format(**port[0]) if port else None
 
     def start(self, **options):
         return self.client.start(self.id, **options)

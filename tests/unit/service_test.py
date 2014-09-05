@@ -6,6 +6,8 @@ from .. import unittest
 import docker
 import mock
 
+import docker
+
 from fig import Service
 from fig.container import Container
 from fig.service import (

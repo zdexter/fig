@@ -93,7 +93,7 @@ class ContainerTest(unittest.TestCase):
         })
         container = Container(None, self.container_dict, has_been_inspected=True)
 
-        expected = "45453/tcp, 49197->45454/tcp"
+        expected = "45453/tcp, 0.0.0.0:49197->45454/tcp"
         self.assertEqual(container.human_readable_ports, expected)
 
     def test_get_local_port(self):
@@ -102,4 +102,6 @@ class ContainerTest(unittest.TestCase):
         })
         container = Container(None, self.container_dict, has_been_inspected=True)
 
-        self.assertEqual(container.get_local_port(45454, protocol='tcp'), 49197)
+        self.assertEqual(
+            container.get_local_port(45454, protocol='tcp'),
+            '0.0.0.0:49197')
