@@ -143,6 +143,11 @@ class Service(object):
             log.info("Killing %s..." % c.name)
             c.kill(**options)
 
+    def restart(self, **options):
+        for c in self.containers():
+            log.info("Restarting %s..." % c.name)
+            c.restart(**options)
+
     def scale(self, desired_num):
         """
         Adjusts the number of containers to the specified number and ensures they are running.
@@ -444,6 +449,11 @@ class Service(object):
             if ':' in str(port):
                 return False
         return True
+
+    def pull(self):
+        if 'image' in self.options:
+            log.info('Pulling %s (%s)...' % (self.name, self.options.get('image')))
+            self.client.pull(self.options.get('image'))
 
 
 def split_tag(tag):

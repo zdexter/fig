@@ -54,6 +54,12 @@ class CLITestCase(DockerClientTestCase):
         self.assertNotIn('multiplefigfiles_another_1', output)
         self.assertIn('multiplefigfiles_yetanother_1', output)
 
+    @patch('fig.service.log')
+    def test_pull(self, mock_logging):
+        self.command.dispatch(['pull'], None)
+        mock_logging.info.assert_any_call('Pulling simple (busybox:latest)...')
+        mock_logging.info.assert_any_call('Pulling another (busybox:latest)...')
+
     @patch('sys.stdout', new_callable=StringIO)
     def test_build_no_cache(self, mock_stdout):
         self.command.base_dir = 'tests/fixtures/simple-dockerfile'
@@ -208,6 +214,22 @@ class CLITestCase(DockerClientTestCase):
         self.assertEqual(len(service.containers(stopped=True)), 1)
         self.command.dispatch(['rm', '--force'], None)
         self.assertEqual(len(service.containers(stopped=True)), 0)
+
+    def test_restart(self):
+        service = self.project.get_service('simple')
+        container = service.create_container()
+        service.start_container(container)
+        started_at = container.dictionary['State']['StartedAt']
+        self.command.dispatch(['restart'], None)
+        container.inspect()
+        self.assertNotEqual(
+            container.dictionary['State']['FinishedAt'],
+            '0001-01-01T00:00:00Z',
+        )
+        self.assertNotEqual(
+            container.dictionary['State']['StartedAt'],
+            started_at,
+        )
 
     def test_scale(self):
         project = self.project
