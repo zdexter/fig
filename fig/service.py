@@ -1,11 +1,14 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
 from collections import namedtuple
-from docker.errors import APIError
 import logging
 import re
 import os
+from operator import attrgetter
 import sys
+
+from docker.errors import APIError
+
 from .container import Container
 from .progress_stream import stream_output, StreamOutputError
 
@@ -67,6 +70,9 @@ class CannotBeScaledError(Exception):
 
 class ConfigError(ValueError):
     pass
+
+
+ServiceName = namedtuple('ServiceName', 'project service number')
 
 
 VolumeSpec = namedtuple('VolumeSpec', 'external internal mode')
@@ -224,8 +230,8 @@ class Service(object):
         """
         containers = self.containers(stopped=True)
 
-        if len(containers) == 0:
-            log.info("Creating %s..." % self.next_container_name())
+        if not containers:
+            log.info("Creating %s..." % self._next_container_name(containers))
             container = self.create_container(**override_options)
             self.start_container(container)
             return [(None, container)]
@@ -239,6 +245,10 @@ class Service(object):
             return tuples
 
     def recreate_container(self, container, **override_options):
+        """Recreate a container. An intermediate container is created so that
+        the new container has the same name, while still supporting
+        `volumes-from` the original container.
+        """
         try:
             container.stop()
         except APIError as e:
@@ -303,7 +313,7 @@ class Service(object):
         containers = self.containers(stopped=True)
 
         if not containers:
-            log.info("Creating %s..." % self.next_container_name())
+            log.info("Creating %s..." % self._next_container_name(containers))
             new_container = self.create_container()
             return [self.start_container(new_container)]
         else:
@@ -312,19 +322,15 @@ class Service(object):
     def get_linked_names(self):
         return [s.name for (s, _) in self.links]
 
-    def next_container_name(self, one_off=False):
+    def _next_container_name(self, all_containers, one_off=False):
         bits = [self.project, self.name]
         if one_off:
             bits.append('run')
-        return '_'.join(bits + [str(self.next_container_number(one_off=one_off))])
+        return '_'.join(bits + [str(self._next_container_number(all_containers))])
 
-    def next_container_number(self, one_off=False):
-        numbers = [parse_name(c.name)[2] for c in self.containers(stopped=True, one_off=one_off)]
-
-        if len(numbers) == 0:
-            return 1
-        else:
-            return max(numbers) + 1
+    def _next_container_number(self, all_containers):
+        numbers = [parse_name(c.name).number for c in all_containers]
+        return 1 if not numbers else max(numbers) + 1
 
     def _get_links(self, link_to_self):
         links = []
@@ -342,12 +348,17 @@ class Service(object):
 
     def _get_volumes_from(self, intermediate_container=None):
         volumes_from = []
-        for v in self.volumes_from:
-            if isinstance(v, Service):
-                for container in v.containers(stopped=True):
-                    volumes_from.append(container.id)
-            elif isinstance(v, Container):
-                volumes_from.append(v.id)
+        for volume_source in self.volumes_from:
+            if isinstance(volume_source, Service):
+                containers = volume_source.containers(stopped=True)
+
+                if not containers:
+                    volumes_from.append(volume_source.create_container().id)
+                else:
+                    volumes_from.extend(map(attrgetter('id'), containers))
+
+            elif isinstance(volume_source, Container):
+                volumes_from.append(volume_source.id)
 
         if intermediate_container:
             volumes_from.append(intermediate_container.id)
@@ -360,7 +371,9 @@ class Service(object):
             for k in DOCKER_CONFIG_KEYS if k in self.options)
         container_options.update(override_options)
 
-        container_options['name'] = self.next_container_name(one_off)
+        container_options['name'] = self._next_container_name(
+            self.containers(stopped=True, one_off=one_off),
+            one_off)
 
         # If a qualified hostname was given, split it into an
         # unqualified hostname and a domainname unless domainname
@@ -514,10 +527,10 @@ def is_valid_name(name, one_off=False):
         return match.group(3) is None
 
 
-def parse_name(name, one_off=False):
+def parse_name(name):
     match = NAME_RE.match(name)
     (project, service_name, _, suffix) = match.groups()
-    return (project, service_name, int(suffix))
+    return ServiceName(project, service_name, int(suffix))
 
 
 def get_container_name(container):

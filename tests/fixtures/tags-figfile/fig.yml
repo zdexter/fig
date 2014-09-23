@@ -7,4 +7,4 @@ simple:
     - 'tag-with-version:v3'
     - 'user/tag-with-user'
     - 'user/tag-with-user-and-version:v4'
-
+    - 'user/tag-with-user-and-version:latest'
