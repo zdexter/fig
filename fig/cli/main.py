@@ -10,7 +10,7 @@ import dockerpty
 
 from .. import __version__
 from ..project import NoSuchService, ConfigurationError
-from ..service import BuildError, CannotBeScaledError
+from ..service import ServiceError, CannotBeScaledError
 from .command import Command
 from .formatter import Formatter
 from .log_printer import LogPrinter
@@ -42,8 +42,9 @@ def main():
     except APIError as e:
         log.error(e.explanation)
         sys.exit(1)
-    except BuildError as e:
-        log.error("Service '%s' failed to build: %s" % (e.service.name, e.reason))
+    except ServiceError as e:
+        log.error("Service '%s' failed to %s: %s" % (
+            e.service.name, e.action, e.reason))
         sys.exit(1)
 
 
@@ -212,6 +213,20 @@ class TopLevelCommand(Command):
         Usage: pull [SERVICE...]
         """
         project.pull(service_names=options['SERVICE'])
+
+    def push(self, project, options):
+        """
+        Push built services.
+
+        Services which have been built and tagged are pushed to a repo.
+
+        Usage: push [options] [SERVICE...]
+
+        Options:
+            --allow-insecure-ssl    Allow pushing to non-https registries
+        """
+        project.push(service_names=options['SERVICE'],
+                     insecure_registry=options.get('--allow-insecure-ssl'))
 
     def rm(self, project, options):
         """

@@ -45,10 +45,20 @@ DOCKER_CONFIG_HINTS = {
 VALID_NAME_CHARS = '[a-zA-Z0-9]'
 
 
-class BuildError(Exception):
+class ServiceError(Exception):
+    action = 'undefined action'
+
     def __init__(self, service, reason):
         self.service = service
         self.reason = reason
+
+
+class BuildError(ServiceError):
+    action = 'build'
+
+
+class PublishError(ServiceError):
+    action = 'push'
 
 
 class CannotBeScaledError(Exception):
@@ -432,6 +442,24 @@ class Service(object):
             image_name, image_tag = split_tag(tag)
             self.client.tag(image_id, image_name, tag=image_tag)
 
+    def push_tags(self, insecure_registry=False):
+        if not self.can_be_built():
+            log.info('%s uses an image, skipping' % self.name)
+            return
+
+        tags = self.options.get('tags', [])
+        if not tags:
+            log.info('%s has no tags, skipping' % self.name)
+
+        for tag in tags:
+            log.info('Pushing %s for %s' % (tag, self.name))
+
+            stream = self.client.push(
+                tag,
+                insecure_registry=insecure_registry,
+                stream=True)
+            stream_push_output(self, stream)
+
     def can_be_built(self):
         return 'build' in self.options
 
@@ -452,6 +480,25 @@ def split_tag(tag):
         return tag.rsplit(':', 1)
     else:
         return tag, None
+
+
+# TODO: merge with duplicated code in build stream
+def stream_push_output(service, stream):
+    try:
+        all_events = stream_output(stream, sys.stdout)
+    except StreamOutputError, e:
+        raise PublishError(service, unicode(e))
+
+    success = False
+
+    for event in all_events:
+        if 'status' in event:
+            match = re.search(r'Pushing tag for rev', event.get('status', ''))
+            if match:
+                success = True
+
+    if success is False:
+        raise PublishError(service, event if all_events else 'Unknown')
 
 
 NAME_RE = re.compile(r'^([^_]+)_([^_]+)_(run_)?(\d+)$')
