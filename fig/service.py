@@ -486,9 +486,8 @@ class Service(object):
         if 'image' in self.options:
             log.info('Pulling %s (%s)...' % (self.name, self.options.get('image')))
             self.client.pull(
-                    self.options.get('image'),
-                    insecure_registry=insecure_registry
-            )
+                self.options.get('image'),
+                insecure_registry=insecure_registry)
 
 
 def split_tag(tag):

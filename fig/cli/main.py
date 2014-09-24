@@ -218,9 +218,8 @@ class TopLevelCommand(Command):
         """
         insecure_registry = options['--allow-insecure-ssl']
         project.pull(
-                service_names=options['SERVICE'],
-                insecure_registry=insecure_registry
-        )
+            service_names=options['SERVICE'],
+            insecure_registry=insecure_registry)
 
     def push(self, project, options):
         """
