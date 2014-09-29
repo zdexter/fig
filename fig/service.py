@@ -78,6 +78,9 @@ ServiceName = namedtuple('ServiceName', 'project service number')
 VolumeSpec = namedtuple('VolumeSpec', 'external internal mode')
 
 
+ServiceName = namedtuple('ServiceName', 'project service number')
+
+
 class Service(object):
     def __init__(self, name, client=None, project='default', links=None, volumes_from=None, **options):
         if not re.match('^%s+$' % VALID_NAME_CHARS, name):
@@ -409,7 +412,7 @@ class Service(object):
             container_options['environment'] = dict(resolve_env(k, v) for k, v in container_options['environment'].iteritems())
 
         if self.can_be_built():
-            if not self.client.images(name=self.full_name):
+            if not self.get_image_ids():
                 self.build()
             container_options['image'] = self.full_name
 
@@ -419,6 +422,17 @@ class Service(object):
                 del container_options[key]
 
         return container_options
+
+    def get_image_ids(self):
+        images = self.client.images(name=self.full_name)
+        return [image['Id'] for image in images]
+
+    def get_latest_image_id(self):
+        images = self.get_image_ids()
+        if len(images) < 1:
+            raise BuildError(
+                self, 'No images for %s, build first' % self.full_name)
+        return images[0]
 
     def build(self, no_cache=False):
         log.info('Building %s...' % self.name)
@@ -447,13 +461,7 @@ class Service(object):
         if image_id is None:
             raise BuildError(self, event if all_events else 'Unknown')
 
-        self.tag_image(image_id)
         return image_id
-
-    def tag_image(self, image_id):
-        for tag in self.options.get('tags', []):
-            image_name, image_tag = split_tag(tag)
-            self.client.tag(image_id, image_name, tag=image_tag)
 
     def push_tags(self, insecure_registry=False):
         if not self.can_be_built():
@@ -473,6 +481,16 @@ class Service(object):
                 stream=True)
             stream_push_output(self, stream)
 
+    def tag(self):
+        if not self.can_be_built():
+            log.info('%s uses an image, skipping' % self.name)
+            return
+
+        image_id = self.get_latest_image_id()
+        for tag in self.options.get('tags', []):
+            image_name, image_tag = split_tag(os.path.expandvars(tag))
+            self.client.tag(image_id, image_name, tag=image_tag)
+
     def can_be_built(self):
         return 'build' in self.options
 
@@ -488,13 +506,6 @@ class Service(object):
             self.client.pull(
                 self.options.get('image'),
                 insecure_registry=insecure_registry)
-
-
-def split_tag(tag):
-    if ':' in tag:
-        return tag.rsplit(':', 1)
-    else:
-        return tag, None
 
 
 # TODO: merge with duplicated code in build stream
@@ -514,6 +525,13 @@ def stream_push_output(service, stream):
 
     if success is False:
         raise PublishError(service, event if all_events else 'Unknown')
+
+
+def split_tag(tag):
+    if ':' in tag:
+        return tag.rsplit(':', 1)
+    else:
+        return tag, None
 
 
 NAME_RE = re.compile(r'^([^_]+)_([^_]+)_(run_)?(\d+)$')
