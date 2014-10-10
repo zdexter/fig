@@ -4,6 +4,7 @@ import logging
 import sys
 import re
 import signal
+from operator import attrgetter
 
 from inspect import getdoc
 import dockerpty
@@ -181,7 +182,10 @@ class TopLevelCommand(Command):
         Options:
             -q    Only display IDs
         """
-        containers = project.containers(service_names=options['SERVICE'], stopped=True) + project.containers(service_names=options['SERVICE'], one_off=True)
+        containers = sorted(
+            project.containers(service_names=options['SERVICE'], stopped=True) +
+            project.containers(service_names=options['SERVICE'], one_off=True),
+            key=attrgetter('name'))
 
         if options['-q']:
             for container in containers:
@@ -274,12 +278,13 @@ class TopLevelCommand(Command):
         Usage: run [options] SERVICE [COMMAND] [ARGS...]
 
         Options:
-            -d         Detached mode: Run container in the background, print
-                       new container name.
-            -T         Disable pseudo-tty allocation. By default `fig run`
-                       allocates a TTY.
-            --rm       Remove container after run. Ignored in detached mode.
-            --no-deps  Don't start linked services.
+            -d                Detached mode: Run container in the background, print
+                              new container name.
+            --entrypoint CMD  Override the entrypoint of the image.
+            --no-deps         Don't start linked services.
+            --rm              Remove container after run. Ignored in detached mode.
+            -T                Disable pseudo-tty allocation. By default `fig run`
+                              allocates a TTY.
         """
         service = project.get_service(options['SERVICE'])
 
@@ -307,6 +312,10 @@ class TopLevelCommand(Command):
             'tty': tty,
             'stdin_open': not options['-d'],
         }
+
+        if options['--entrypoint']:
+            container_options['entrypoint'] = options.get('--entrypoint')
+
         container = service.create_container(one_off=True, **container_options)
         if options['-d']:
             service.start_container(container, ports=None, one_off=True)

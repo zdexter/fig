@@ -190,7 +190,7 @@ class CLITestCase(DockerClientTestCase):
     @patch('dockerpty.start')
     def test_run_without_command(self, __):
         self.command.base_dir = 'tests/fixtures/commands-figfile'
-        self.client.build('tests/fixtures/simple-dockerfile', tag='figtest_test')
+        self.check_build('tests/fixtures/simple-dockerfile', tag='figtest_test')
 
         for c in self.project.containers(stopped=True, one_off=True):
             c.remove()
@@ -209,6 +209,21 @@ class CLITestCase(DockerClientTestCase):
         self.assertEqual(
             [c.human_readable_command for c in containers],
             [u'/bin/true'],
+        )
+
+    @patch('dockerpty.start')
+    def test_run_service_with_entrypoint_overridden(self, _):
+        self.command.base_dir = 'tests/fixtures/dockerfile_with_entrypoint'
+        name = 'service'
+        self.command.dispatch(
+            ['run', '--entrypoint', '/bin/echo', name, 'helloworld'],
+            None
+        )
+        service = self.project.get_service(name)
+        container = service.containers(stopped=True, one_off=True)[0]
+        self.assertEqual(
+            container.human_readable_command,
+            u'/bin/echo helloworld'
         )
 
     def test_rm(self):
