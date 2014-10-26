@@ -54,7 +54,7 @@ DOCKER_START_KEYS = [
     'cap_add',
     'cap_drop',
     'dns',
-    'dns_search', 
+    'dns_search',
     'env_file',
     'net',
     'privileged',
@@ -236,7 +236,7 @@ class Service(object):
                 return Container.create(self.client, **container_options)
             raise
 
-    def recreate_containers(self, insecure_registry=False, **override_options):
+    def recreate_containers(self, insecure_registry=False, do_build=True, **override_options):
         """
         If a container for this service doesn't exist, create and start one. If there are
         any, stop them, create+start new ones, and remove the old containers.
@@ -244,7 +244,10 @@ class Service(object):
         containers = self.containers(stopped=True)
         if not containers:
             log.info("Creating %s..." % self._next_container_name(containers))
-            container = self.create_container(insecure_registry=insecure_registry, **override_options)
+            container = self.create_container(
+                insecure_registry=insecure_registry,
+                do_build=do_build,
+                **override_options)
             self.start_container(container)
             return [(None, container)]
         else:
@@ -282,7 +285,7 @@ class Service(object):
         container.remove()
 
         options = dict(override_options)
-        new_container = self.create_container(**options)
+        new_container = self.create_container(do_build=False, **options)
         self.start_container(new_container, intermediate_container=intermediate_container)
 
         intermediate_container.remove()
@@ -329,12 +332,14 @@ class Service(object):
         )
         return container
 
-    def start_or_create_containers(self, insecure_registry=False):
+    def start_or_create_containers(self, insecure_registry=False, do_build=True):
         containers = self.containers(stopped=True)
 
         if not containers:
             log.info("Creating %s..." % self._next_container_name(containers))
-            new_container = self.create_container(insecure_registry=insecure_registry)
+            new_container = self.create_container(
+                insecure_registry=insecure_registry,
+                do_build=do_build)
             return [self.start_container(new_container)]
         else:
             return [self.start_container_if_stopped(c) for c in containers]
