@@ -455,12 +455,13 @@ def parse_name(name):
     return ServiceName(project, service_name, int(suffix))
 
 
+# TODO: new test cases
 def get_container_name(container):
     if not container.get('Name') and not container.get('Names'):
         return None
     # inspect
     if 'Name' in container:
-        return container['Name']
+        return container['Name'].lstrip('/')
     # ps
     for name in container['Names']:
         if len(name.split('/')) == 2:
