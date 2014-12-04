@@ -17,6 +17,26 @@ def sort_service_dicts(services):
 
     get_service_names = lambda links: [link.split(':')[0] for link in links]
 
+    def get_service_name_from_net(net_config):
+        if not net_config:
+            return
+
+        if not net_config.startswith('container:'):
+            return
+
+        _, net_name = net_config.split(':', 1)
+        return net_name
+
+    def get_service_dependents(service_dict, services):
+        name = service_dict['name']
+        return [
+            service for service in services
+            if (name in get_service_names(service.get('links', [])) or
+                name in service.get('volumes_from', []) or
+                name in service.get('depends_on', []) or
+                name == get_service_name_from_net(service.get('net')))
+        ]
+
     def visit(n):
         if n['name'] in temporary_marked:
             if n['name'] in get_service_names(n.get('links', [])):
@@ -27,8 +47,7 @@ def sort_service_dicts(services):
                 raise DependencyError('Circular import between %s' % ' and '.join(temporary_marked))
         if n in unmarked:
             temporary_marked.add(n['name'])
-            dependents = [m for m in services if (n['name'] in get_service_names(m.get('links', []))) or (n['name'] in m.get('volumes_from', []))]
-            for m in dependents:
+            for m in get_service_dependents(n, services):
                 visit(m)
             temporary_marked.remove(n['name'])
             unmarked.remove(n)
