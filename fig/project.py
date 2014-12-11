@@ -167,10 +167,6 @@ class Project(object):
             else:
                 log.info('%s uses an image, skipping' % service.name)
 
-    def tag(self, service_names=None):
-        for service in self.get_services(service_names):
-            service.tag()
-
     def up(self, service_names=None, start_links=True, recreate=True, insecure_registry=False):
         running_containers = []
         for service in self.get_services(service_names, include_links=start_links):
@@ -186,10 +182,6 @@ class Project(object):
     def pull(self, service_names=None, insecure_registry=False):
         for service in self.get_services(service_names, include_links=True):
             service.pull(insecure_registry=insecure_registry)
-
-    def push(self, service_names=None, insecure_registry=False):
-        for service in self.get_services(service_names):
-            service.push_tags(insecure_registry=insecure_registry)
 
     def remove_stopped(self, service_names=None, **options):
         for service in self.get_services(service_names):

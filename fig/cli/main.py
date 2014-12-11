@@ -11,7 +11,7 @@ import dockerpty
 
 from .. import __version__
 from ..project import NoSuchService, ConfigurationError
-from ..service import ServiceError, CannotBeScaledError
+from ..service import BuildError, CannotBeScaledError
 from .command import Command
 from .formatter import Formatter
 from .log_printer import LogPrinter
@@ -43,9 +43,8 @@ def main():
     except APIError as e:
         log.error(e.explanation)
         sys.exit(1)
-    except ServiceError as e:
-        log.error("Service '%s' failed to %s: %s" % (
-            e.service.name, e.action, e.reason))
+    except BuildError as e:
+        log.error("Service '%s' failed to build: %s" % (e.service.name, e.reason))
         sys.exit(1)
 
 
@@ -229,21 +228,8 @@ class TopLevelCommand(Command):
         insecure_registry = options['--allow-insecure-ssl']
         project.pull(
             service_names=options['SERVICE'],
-            insecure_registry=insecure_registry)
-
-    def push(self, project, options):
-        """
-        Push built services.
-
-        Services which have been built and tagged are pushed to a repo.
-
-        Usage: push [options] [SERVICE...]
-
-        Options:
-            --allow-insecure-ssl    Allow pushing to non-https registries
-        """
-        project.push(service_names=options['SERVICE'],
-                     insecure_registry=options.get('--allow-insecure-ssl'))
+            insecure_registry=insecure_registry
+        )
 
     def rm(self, project, options):
         """
@@ -398,14 +384,6 @@ class TopLevelCommand(Command):
         Usage: stop [SERVICE...]
         """
         project.stop(service_names=options['SERVICE'])
-
-    def tag(self, project, options):
-        """
-        Tag images that were built by a build directive.
-
-        Usage: tag [SERVICE...]
-        """
-        project.tag(service_names=options['SERVICE'])
 
     def restart(self, project, options):
         """
