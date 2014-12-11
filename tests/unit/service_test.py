@@ -15,6 +15,7 @@ from fig.service import (
     BuildError,
     ConfigError,
     split_port,
+    build_port_bindings,
     parse_volume_spec,
     build_volume_binding,
     APIError,
@@ -180,6 +181,19 @@ class ServiceTest(unittest.TestCase):
         with self.assertRaises(ConfigError):
             split_port("0.0.0.0:1000:2000:tcp")
 
+    def test_build_port_bindings_with_one_port(self):
+        port_bindings = build_port_bindings(["127.0.0.1:1000:1000"])
+        self.assertEqual(port_bindings["1000"],[("127.0.0.1","1000")])
+
+    def test_build_port_bindings_with_matching_internal_ports(self):
+        port_bindings = build_port_bindings(["127.0.0.1:1000:1000","127.0.0.1:2000:1000"])
+        self.assertEqual(port_bindings["1000"],[("127.0.0.1","1000"),("127.0.0.1","2000")])
+
+    def test_build_port_bindings_with_nonmatching_internal_ports(self):
+        port_bindings = build_port_bindings(["127.0.0.1:1000:1000","127.0.0.1:2000:2000"])
+        self.assertEqual(port_bindings["1000"],[("127.0.0.1","1000")])
+        self.assertEqual(port_bindings["2000"],[("127.0.0.1","2000")])
+
     def test_split_domainname_none(self):
         service = Service('foo', hostname='name', client=self.mock_client)
         self.mock_client.containers.return_value = []
@@ -297,3 +311,72 @@ class ServiceVolumesTest(unittest.TestCase):
         self.assertEqual(
             binding,
             ('/home/user', dict(bind='/home/user', ro=False)))
+
+class ServiceEnvironmentTest(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_client = mock.create_autospec(docker.Client)
+        self.mock_client.containers.return_value = []
+
+    def test_parse_environment(self):
+        service = Service('foo',
+                environment=['NORMAL=F1', 'CONTAINS_EQUALS=F=2', 'TRAILING_EQUALS='],
+                client=self.mock_client,
+            )
+        options = service._get_container_create_options({})
+        self.assertEqual(
+            options['environment'],
+            {'NORMAL': 'F1', 'CONTAINS_EQUALS': 'F=2', 'TRAILING_EQUALS': ''}
+            )
+
+    @mock.patch.dict(os.environ)
+    def test_resolve_environment(self):
+        os.environ['FILE_DEF'] = 'E1'
+        os.environ['FILE_DEF_EMPTY'] = 'E2'
+        os.environ['ENV_DEF'] = 'E3'
+        service = Service('foo',
+                environment={'FILE_DEF': 'F1', 'FILE_DEF_EMPTY': '', 'ENV_DEF': None, 'NO_DEF': None},
+                client=self.mock_client,
+            )
+        options = service._get_container_create_options({})
+        self.assertEqual(
+            options['environment'],
+            {'FILE_DEF': 'F1', 'FILE_DEF_EMPTY': '', 'ENV_DEF': 'E3', 'NO_DEF': ''}
+            )
+
+    def test_env_from_file(self):
+        service = Service('foo',
+                env_file='tests/fixtures/env/one.env',
+                client=self.mock_client,
+            )
+        options = service._get_container_create_options({})
+        self.assertEqual(
+            options['environment'],
+            {'ONE': '2', 'TWO': '1', 'THREE': '3', 'FOO': 'bar'}
+            )
+
+    def test_env_from_multiple_files(self):
+        service = Service('foo',
+                env_file=['tests/fixtures/env/one.env', 'tests/fixtures/env/two.env'],
+                client=self.mock_client,
+            )
+        options = service._get_container_create_options({})
+        self.assertEqual(
+            options['environment'],
+            {'ONE': '2', 'TWO': '1', 'THREE': '3', 'FOO': 'baz', 'DOO': 'dah'}
+            )
+
+    @mock.patch.dict(os.environ)
+    def test_resolve_environment_from_file(self):
+        os.environ['FILE_DEF'] = 'E1'
+        os.environ['FILE_DEF_EMPTY'] = 'E2'
+        os.environ['ENV_DEF'] = 'E3'
+        service = Service('foo',
+                env_file=['tests/fixtures/env/resolve.env'],
+                client=self.mock_client,
+            )
+        options = service._get_container_create_options({})
+        self.assertEqual(
+            options['environment'],
+            {'FILE_DEF': 'F1', 'FILE_DEF_EMPTY': '', 'ENV_DEF': 'E3', 'NO_DEF': ''}
+            )
