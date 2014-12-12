@@ -427,8 +427,6 @@ class Service(object):
         container_options['environment'] = merge_environment(container_options)
 
         if self.can_be_built():
-            if len(self.client.images(name=self.full_name)) == 0:
-                self.build()
             container_options['image'] = self.full_name
         else:
             container_options['image'] = self._get_image_name(container_options['image'])
