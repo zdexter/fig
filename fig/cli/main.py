@@ -423,7 +423,7 @@ class TopLevelCommand(Command):
             --no-color            Produce monochrome output.
             --no-deps             Don't start linked services.
             --no-recreate         If containers already exist, don't recreate them.
-            --no-build            Don't build an image if it's missing
+            --no-build            Don't build an image, even if it's missing
         """
         insecure_registry = options['--allow-insecure-ssl']
         detached = options['-d']

@@ -56,7 +56,7 @@ DOCKER_START_KEYS = [
     'cap_add',
     'cap_drop',
     'dns',
-    'dns_search', 
+    'dns_search',
     'env_file',
     'net',
     'privileged',
