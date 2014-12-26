@@ -171,6 +171,17 @@ cap_drop:
   - SYS_ADMIN
 ```
 
+### dns_search
+
+Custom DNS search domains. Can be a single value or a list.
+
+```
+dns_search: example.com
+dns_search:
+  - dc1.example.com
+  - dc2.example.com
+```
+
 ### working\_dir, entrypoint, user, hostname, domainname, mem\_limit, privileged, restart
 
 Each of these is a single value, analogous to its [docker run](https://docs.docker.com/reference/run/) counterpart.
@@ -187,4 +198,43 @@ mem_limit: 1000000000
 privileged: true
 
 restart: always
+```
+
+## Project Includes
+
+External projects can be included by specifying a url to the projects `fig.yml`
+file. Only services with `image` may be included (because there would be no way
+to build the service without the full project).
+
+Urls may be filepaths, http/https or s3.  Remote files will be cached locally
+using the specified cache settings (defaults to a path of ~/.fig-cache/ with
+a ttl of 5 minutes).
+
+Example:
+
+```yaml
+
+project-config:
+
+    include:
+        projecta:
+            url: 's3://bucket/path/to/key/projecta.yml'
+        projectb:
+            url: 'http://example.com/projectb/fig.yml'
+        projectc:
+            url: './path/to/projectc/fig.yml'
+
+    # This section is optional, below are the default values
+    cache:
+        enable: True
+        path: ~/.fig-cache/
+        ttl: 5min
+
+webapp:
+    build: .
+    links:
+        - projecta_webapp
+        - pojrectb_webapp
+    volumes_from:
+        - projectc_data
 ```
