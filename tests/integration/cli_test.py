@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import sys
+import time
 
 from six import StringIO
 from mock import patch
@@ -300,6 +301,7 @@ class CLITestCase(DockerClientTestCase):
         self.assertTrue(service.containers()[0].is_running)
 
         self.command.dispatch(['kill', '-s', 'SIGINT'], None)
+        time.sleep(0.2)
 
         self.assertEqual(len(service.containers()), 1)
         # The container is still running. It has been only interrupted
@@ -309,6 +311,7 @@ class CLITestCase(DockerClientTestCase):
         self.command.dispatch(['up', '-d'], None)
         service = self.project.get_service('simple')
         self.command.dispatch(['kill', '-s', 'SIGINT'], None)
+        time.sleep(0.2)
         self.assertTrue(service.containers()[0].is_running)
 
         self.command.dispatch(['kill', '-s', 'SIGKILL'], None)
