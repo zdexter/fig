@@ -100,6 +100,12 @@ class ServiceTest(DockerClientTestCase):
         service.start_container(container)
         self.assertIn('/var/db', container.inspect()['Volumes'])
 
+    def test_create_container_with_cpu_shares(self):
+        service = self.create_service('db', cpu_shares=73)
+        container = service.create_container()
+        service.start_container(container)
+        self.assertEqual(container.inspect()['Config']['CpuShares'], 73)
+
     def test_create_container_with_specified_volume(self):
         host_path = '/tmp/host-path'
         container_path = '/container-path'
@@ -224,6 +230,25 @@ class ServiceTest(DockerClientTestCase):
             ]),
         )
 
+    def test_start_container_with_external_links(self):
+        db = self.create_service('db')
+        web = self.create_service('web', external_links=['figtest_db_1',
+                                                         'figtest_db_2',
+                                                         'figtest_db_3:db_3'])
+
+        for _ in range(3):
+            create_and_start_container(db)
+        create_and_start_container(web)
+
+        self.assertEqual(
+            set(web.containers()[0].links()),
+            set([
+                'figtest_db_1',
+                'figtest_db_2',
+                'db_3',
+                ]),
+        )
+
     def test_start_normal_container_does_not_create_links_to_its_own_service(self):
         db = self.create_service('db')
 
@@ -337,6 +362,14 @@ class ServiceTest(DockerClientTestCase):
         service = self.create_service('web')
         service.scale(1)
         self.assertEqual(len(service.containers()), 1)
+
+        # Ensure containers don't have stdout or stdin connected
+        container = service.containers()[0]
+        config = container.inspect()['Config']
+        self.assertFalse(config['AttachStderr'])
+        self.assertFalse(config['AttachStdout'])
+        self.assertFalse(config['AttachStdin'])
+
         service.scale(3)
         self.assertEqual(len(service.containers()), 3)
         service.scale(1)
