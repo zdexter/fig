@@ -4,7 +4,7 @@ from collections import namedtuple
 import logging
 import re
 import os
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 import sys
 
 from docker.errors import APIError
@@ -266,8 +266,8 @@ class Service(object):
 
     def recreate_container(self, container, **override_options):
         """Recreate a container. An intermediate container is created so that
-        the new container has the same name, while still supporting
-        `volumes-from` the original container.
+        the new container has the same name, while keeping existing data
+        volumes from the original container.
         """
         log.info("Recreating %s..." % container.name)
         try:
@@ -288,15 +288,17 @@ class Service(object):
             command=[],
             detach=True,
         )
-        intermediate_container.start(
-            binds=get_container_data_volumes(
-                container, intermediate_options.get('volumes')))
+        volume_binds = get_container_data_volumes(
+            container,
+            intermediate_options.get('volumes'))
+        intermediate_container.start(binds=volume_binds)
         intermediate_container.wait()
         container.remove()
 
-        # TODO: volumes are being passed to both start and create, this is
-        # probably unnecessary
-        options = dict(override_options)
+        volumes = remove_existing_volumes(
+            self.options.get('volumes', []),
+            volume_binds)
+        options = dict(override_options, volumes=volumes)
         new_container = self.create_container(do_build=False, **options)
         self.start_container(
             new_container,
@@ -557,6 +559,15 @@ def get_volume_bindings(volumes_option, intermediate_container):
             get_container_data_volumes(intermediate_container, volumes_option))
 
     return volume_bindings
+
+
+def remove_existing_volumes(volumes_option, existing_volumes):
+    existing_volumes = set(map(itemgetter('bind'), existing_volumes.values()))
+
+    def volume_does_not_exist(volume):
+        return volume not in existing_volumes
+
+    return filter(volume_does_not_exist, volumes_option)
 
 
 NAME_RE = re.compile(r'^([^_]+)_([^_]+)_(run_)?(\d+)$')
