@@ -183,7 +183,7 @@ class ServiceTest(DockerClientTestCase):
 
     def test_recreate_containers_with_image_declared_volume(self):
         service = Service(
-            project='figtest',
+            project='composetest',
             name='db',
             client=self.client,
             build='tests/fixtures/dockerfile-with-volume',
@@ -193,9 +193,7 @@ class ServiceTest(DockerClientTestCase):
         self.assertEqual(old_container.get('Volumes').keys(), ['/data'])
         volume_path = old_container.get('Volumes')['/data']
 
-        service.recreate_containers()
-        new_container = service.containers()[0]
-        service.start_container(new_container)
+        new_container = service.recreate_containers()[0]
         self.assertEqual(new_container.get('Volumes').keys(), ['/data'])
         self.assertEqual(new_container.get('Volumes')['/data'], volume_path)
 

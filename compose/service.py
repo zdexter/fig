@@ -4,9 +4,10 @@ from collections import namedtuple
 import logging
 import re
 import os
-from operator import attrgetter, itemgetter
+from operator import attrgetter
 import sys
 
+import docker.utils
 from docker.errors import APIError
 
 from .container import Container, get_container_name
@@ -281,24 +282,24 @@ class Service(object):
                 raise
 
         intermediate_options = dict(self.options, **override_options)
+        volume_binds = get_container_data_volumes(
+            container,
+            intermediate_options.get('volumes'))
         intermediate_container = Container.create(
             self.client,
             image=container.image,
             entrypoint=['/bin/echo'],
             command=[],
             detach=True,
+            host_config=docker.utils.create_host_config(binds=volume_binds),
         )
-        volume_binds = get_container_data_volumes(
-            container,
-            intermediate_options.get('volumes'))
-        intermediate_container.start(binds=volume_binds)
+        intermediate_container.start()
         intermediate_container.wait()
         container.remove()
 
-        volumes = remove_existing_volumes(
-            self.options.get('volumes', []),
-            volume_binds)
-        options = dict(override_options, volumes=volumes)
+        options = dict(
+            override_options,
+            host_config=docker.utils.create_host_config(binds=volume_binds))
         new_container = self.create_container(do_build=False, **options)
         self.start_container(
             new_container,
@@ -527,13 +528,18 @@ def get_container_data_volumes(container, volumes_option):
     a mapping of volume bindings for those volumes.
     """
     volumes = []
-    for volume in volumes_option or []:
+
+    volumes_option = volumes_option or []
+    container_volumes = container.get('Volumes') or {}
+    original_volumes = set(volumes_option + container_volumes.keys())
+
+    for volume in original_volumes:
         volume = parse_volume_spec(volume)
         # No need to preserve host volumes
         if volume.external:
             continue
 
-        volume_path = (container.get('Volumes') or {}).get(volume.internal)
+        volume_path = container_volumes.get(volume.internal)
         # New volume, doesn't exist in the old container
         if not volume_path:
             continue
@@ -559,15 +565,6 @@ def get_volume_bindings(volumes_option, intermediate_container):
             get_container_data_volumes(intermediate_container, volumes_option))
 
     return volume_bindings
-
-
-def remove_existing_volumes(volumes_option, existing_volumes):
-    existing_volumes = set(map(itemgetter('bind'), existing_volumes.values()))
-
-    def volume_does_not_exist(volume):
-        return volume not in existing_volumes
-
-    return filter(volume_does_not_exist, volumes_option)
 
 
 NAME_RE = re.compile(r'^([^_]+)_([^_]+)_(run_)?(\d+)$')
