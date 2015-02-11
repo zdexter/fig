@@ -32,6 +32,7 @@ install_requires = [
     'websocket-client >= 0.11.0, < 0.12',
     'docker-py >= 0.6.0, < 0.7',
     'dockerpty >= 0.3.2, < 0.4',
+    'retrying >= 1.2',
     'six >= 1.3.0, < 2',
     'pytimeparse >= 1.1.2',
 ]

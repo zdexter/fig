@@ -2,10 +2,23 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from collections import namedtuple
 
+import docker.errors
+import retrying
 import six
 
 
 Volume = namedtuple('Volume', 'path mode host')
+
+
+def retry_on_api_error(exception):
+    return isinstance(exception, docker.errors.APIError)
+
+
+api_retry = retrying.retry(
+    stop_max_attempt_number=3,
+    wait_random_min=200,
+    wait_random_max=2000,
+    retry_on_exception=retry_on_api_error)
 
 
 class Container(object):
@@ -134,6 +147,7 @@ class Container(object):
         port = self.ports.get("%s/%s" % (port, protocol))
         return "{HostIp}:{HostPort}".format(**port[0]) if port else None
 
+    @api_retry
     def start(self, **options):
         return self.client.start(self.id, **options)
 
