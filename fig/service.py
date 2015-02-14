@@ -278,9 +278,9 @@ class Service(object):
         try:
             container.stop()
         except APIError as e:
-            if (e.response.status_code == 500
-                    and e.explanation
-                    and 'no such process' in str(e.explanation)):
+            if (e.response.status_code == 500 and
+                    e.explanation and
+                    'no such process' in str(e.explanation)):
                 pass
             else:
                 raise
@@ -430,9 +430,9 @@ class Service(object):
         # unqualified hostname and a domainname unless domainname
         # was also given explicitly. This matches the behavior of
         # the official Docker CLI in that scenario.
-        if ('hostname' in container_options
-                and 'domainname' not in container_options
-                and '.' in container_options['hostname']):
+        if ('hostname' in container_options and
+                'domainname' not in container_options and
+                '.' in container_options['hostname']):
             parts = container_options['hostname'].partition('.')
             container_options['hostname'] = parts[0]
             container_options['domainname'] = parts[2]
