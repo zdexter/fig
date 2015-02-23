@@ -468,7 +468,7 @@ class Service(object):
         return container_options
 
     def _get_image_name(self, image):
-        repo, tag = parse_repository_tag(image)
+        repo, tag = parse_repository_tag(os.path.expandvars(image))
         if tag == "":
             tag = "latest"
         return '%s:%s' % (repo, tag)

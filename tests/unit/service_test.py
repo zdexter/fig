@@ -226,6 +226,14 @@ class ServiceTest(unittest.TestCase):
         self.assertFalse(self.mock_client.images.called)
         self.assertFalse(self.mock_client.build.called)
 
+    @mock.patch.dict(os.environ)
+    def test_get_image_name_with_envvars(self):
+        os.environ['USE_TAG'] = '12345'
+        service = Service('foo')
+        self.assertEqual(
+            service._get_image_name('something:${USE_TAG}'),
+            'something:12345')
+
     def test_parse_repository_tag(self):
         self.assertEqual(parse_repository_tag("root"), ("root", ""))
         self.assertEqual(parse_repository_tag("root:tag"), ("root", "tag"))
