@@ -319,7 +319,12 @@ class Service(object):
             log.info("Starting %s..." % container.name)
             return self.start_container(container, **options)
 
-    def start_container(self, container, intermediate_container=None, **override_options):
+    def start_container(
+            self,
+            container,
+            intermediate_container=None,
+            service_only_links=False,
+            **override_options):
         options = dict(self.options, **override_options)
         port_bindings = build_port_bindings(options.get('ports') or [])
         privileged = options.get('privileged', False)
@@ -332,9 +337,12 @@ class Service(object):
         restart = parse_restart_spec(options.get('restart', None))
         binds = get_volume_bindings(
             options.get('volumes'), intermediate_container)
+        links = self._get_links(
+            link_to_self=options.get('one_off', False),
+            service_only_links=service_only_links)
 
         container.start(
-            links=self._get_links(link_to_self=options.get('one_off', False)),
+            links=links,
             port_bindings=port_bindings,
             binds=binds,
             volumes_from=self._get_volumes_from(),
@@ -364,7 +372,7 @@ class Service(object):
             do_build=do_build,
             all_containers=containers,
         )
-        return [self.start_container(new_container)]
+        return [self.start_container(new_container, service_only_links=True)]
 
     def start_or_create_containers(
             self,
@@ -400,8 +408,17 @@ class Service(object):
         numbers = [parse_name(c.name).number for c in all_containers]
         return 1 if not numbers else max(numbers) + 1
 
-    def _get_links(self, link_to_self):
+    def _get_links(self, link_to_self, service_only_links=False):
         links = []
+
+        if service_only_links:
+            for service, link_name in self.links:
+                container_name = service.full_name + '_1'
+                links.append((container_name, link_name or service.name))
+                links.append((container_name, container_name))
+                links.append((container_name, service.name + '_1'))
+            return links
+
         for service, link_name in self.links:
             for container in service.containers():
                 links.append((container.name, link_name or service.name))

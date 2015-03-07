@@ -83,21 +83,17 @@ class ProjectTest(unittest.TestCase):
     def test_up_with_fresh_start(self):
         mock_client = mock.create_autospec(docker.Client)
         services = [
-            {'name': 'web', 'image': 'busybox:latest'},
+            {'name': 'web', 'image': 'busybox:latest', 'links': ['db']},
             {'name': 'db',  'image': 'busybox:latest'},
         ]
         project = Project.from_dicts('test', services, mock_client, None, None)
         containers = project.up(do_build=False, fresh_start=True)
         self.assertEqual(len(containers), 2)
-        expected = [
-            mock.call.create_container(
-                environment={},
-                image='busybox:latest',
-                detach=False,
-            ),
-            mock.call.start(
+
+        def build_start_call(links):
+            return mock.call.start(
                 mock_client.create_container.return_value.__getitem__.return_value,
-                links=[],
+                links=links,
                 cap_add=None,
                 restart_policy=None,
                 dns_search=None,
@@ -108,8 +104,28 @@ class ProjectTest(unittest.TestCase):
                 port_bindings={},
                 cap_drop=None,
                 privileged=False,
+            )
+
+        expected = [
+            mock.call.create_container(
+                environment={},
+                image='busybox:latest',
+                detach=False,
+                name='test_db_1',
             ),
-        ] * 2
+            build_start_call([]),
+            mock.call.create_container(
+                environment={},
+                image='busybox:latest',
+                detach=False,
+                name='test_web_1',
+            ),
+            build_start_call([
+                ('test_db_1', 'db'),
+                ('test_db_1', 'test_db_1'),
+                ('test_db_1', 'db_1'),
+            ]),
+        ]
         self.assertEqual(mock_client.method_calls, expected)
 
     def test_get_service_no_external(self):
