@@ -5,6 +5,7 @@ import mock
 from .. import unittest
 
 from fig import includes
+from fig.container import Container
 from fig.service import (
     Service,
     ServiceLink,
@@ -78,6 +79,38 @@ class ProjectTest(unittest.TestCase):
             project = Project.from_config('figtest', {
                 'web': 'busybox:latest',
             }, None)
+
+    def test_up_with_fresh_start(self):
+        mock_client = mock.create_autospec(docker.Client)
+        services = [
+            {'name': 'web', 'image': 'busybox:latest'},
+            {'name': 'db',  'image': 'busybox:latest'},
+        ]
+        project = Project.from_dicts('test', services, mock_client, None, None)
+        containers = project.up(do_build=False, fresh_start=True)
+        self.assertEqual(len(containers), 2)
+        expected = [
+            mock.call.create_container(
+                environment={},
+                image='busybox:latest',
+                detach=False,
+            ),
+            mock.call.start(
+                mock_client.create_container.return_value.__getitem__.return_value,
+                links=[],
+                cap_add=None,
+                restart_policy=None,
+                dns_search=None,
+                network_mode='bridge',
+                binds={},
+                dns=None,
+                volumes_from=[],
+                port_bindings={},
+                cap_drop=None,
+                privileged=False,
+            ),
+        ] * 2
+        self.assertEqual(mock_client.method_calls, expected)
 
     def test_get_service_no_external(self):
         web = Service(

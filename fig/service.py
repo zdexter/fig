@@ -217,6 +217,7 @@ class Service(object):
                          one_off=False,
                          insecure_registry=False,
                          do_build=True,
+                         all_containers=None,
                          **override_options):
         """
         Create a container for this service. If the image doesn't exist, attempt to pull
@@ -224,7 +225,8 @@ class Service(object):
         """
         container_options = self._get_container_create_options(
             override_options,
-            one_off=one_off)
+            one_off=one_off,
+            all_containers=all_containers)
 
         if (do_build and
                 self.can_be_built() and
@@ -232,7 +234,7 @@ class Service(object):
             self.build()
 
         try:
-            return Container.create(self.client, **container_options)
+            return Container.create_with_name(self.client, **container_options)
         except APIError as e:
             if e.response.status_code == 404 and e.explanation and 'No such image' in str(e.explanation):
                 log.info('Pulling image %s...' % container_options['image'])
@@ -242,7 +244,7 @@ class Service(object):
                     insecure_registry=insecure_registry
                 )
                 stream_output(output, sys.stdout)
-                return Container.create(self.client, **container_options)
+                return Container.create_with_name(self.client, **container_options)
             raise
 
     def recreate_containers(self, insecure_registry=False, do_build=True, **override_options):
@@ -346,6 +348,24 @@ class Service(object):
         )
         return container
 
+    def fresh_start(self, insecure_registry=False, detach=False, do_build=True):
+        """Start containers for this service, assuming that no containers exist
+        already. If there is a previous container, this operation will fail.
+
+        This may be used when you're sure that you're starting a container
+        with a unique name, and you don't want to wait for the relatively
+        slow "list all containers to find the next name operation".
+        """
+        containers = []
+        log.info("Creating %s..." % self._next_container_name(containers))
+        new_container = self.create_container(
+            insecure_registry=insecure_registry,
+            detach=detach,
+            do_build=do_build,
+            all_containers=containers,
+        )
+        return [self.start_container(new_container)]
+
     def start_or_create_containers(
             self,
             insecure_registry=False,
@@ -416,14 +436,22 @@ class Service(object):
 
         return volumes_from
 
-    def _get_container_create_options(self, override_options, one_off=False):
+    def _get_container_create_options(
+            self,
+            override_options,
+            one_off=False,
+            all_containers=None):
         container_options = dict(
             (k, self.options[k])
             for k in DOCKER_CONFIG_KEYS if k in self.options)
         container_options.update(override_options)
 
+        if all_containers is None:
+            all_containers = self.containers(
+                stopped=True,
+                one_off=one_off)
         container_options['name'] = self._next_container_name(
-            self.containers(stopped=True, one_off=one_off),
+            all_containers,
             one_off)
 
         # If a qualified hostname was given, split it into an
